@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>WhatsApp Chat Browser</title>
+
+    <style>
+        #chat {
+            max-width: 600px;
+            font-family: "verdana", sans-serif;
+            font-size: 10pt;
+            padding: 10px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .chat_header {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            background-color: #f1f1f1;
+            border: 1px solid #009000;
+        }
+
+        .heading {
+            font-size: 140%;
+        }
+
+        .day {
+            text-align: center;
+            margin: 30px 10px 10px 10px;
+        }
+
+        .messages {
+            background-color: #f1f1f1;
+            border: 1px solid #009000;
+            padding: 2px 4px;
+        }
+
+        .m {
+            margin: 2px 0px;
+            padding: 2px;
+            max-width: 75%;
+            overflow: auto;
+        }
+
+        .m > div{
+            margin: 1px;
+        }
+
+        .m > f {
+            font-family: "Courier New", monospace;
+            font-size: 8pt;
+            color: #777777;
+        }
+
+        .t {
+            white-space: pre-wrap;
+        }
+
+        .i {
+            background-color: #ccd9ff;
+        }
+
+        .o {
+            margin-left: auto;
+            background-color: #bae691;
+        }
+
+        .q {
+            color: grey;
+            text-decoration: none;
+            font-size: 80%;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+            -moz-white-space: nowrap;
+            -webkit-line-clamp: 3;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+        }
+
+        .date {
+            margin: auto;
+            background-color: gainsboro;
+            width: min-content;
+            padding: 5px;
+            position: sticky;
+            top: 0;
+        }
+
+        #jsonFile, h1, h5 {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <form id="jsonFile" name="jsonFile" enctype="multipart/form-data" method="post">
+        <fieldset>
+            <input type="file" id="fileinput" />
+            <input type="button" id="btnLoad" value="Load" onclick="loadFile();" />
+        </fieldset>
+    </form>
+    <div id="chat">
+        <h5>Go to <a href="https://andreas-mausch.de/whatsapp-viewer/">WhatsApp Viewer</a> and export chat as JSON, and drop it here</h5>
+        <h5>Your chat is perfectly safe</h5>
+    </div>
+
+    <script>
+        function go(data) {
+            html = "";
+            refs = {};
+            var lastDate = new Date();
+            var hopt = {
+                hour12: false
+            };
+            var cIn = 0, cOut = 0;
+            data.messages.forEach((e, i) => {
+                refs[e.id] = i;
+                if (e.fromMe) cOut++; else cIn++;
+                var time = new Date(e.timestamp);
+                var date = e.timestamp.substr(0, 10);
+                if (lastDate != date) {
+                    html += `<div class="date">${new Date(date).toLocaleDateString("en-US")}</div>`;
+                    lastDate = date;
+                }
+                html += `<div class="m ${e.fromMe ? 'o':'i'}" id="${e.id}">
+                    ${e.quotedMessageId ? '<div><a class="q" href="#'+e.quotedMessageId+'">'+escapeHtml(data.messages[refs[e.quotedMessageId]].text || '')+ '</a></div>':''}
+                    ${e.image ? '<div><a href="'+e.filename+'"><img src="data:image/jpeg;base64,'+e.image+'"></a></div>':''}
+                    ${e.text ? '<div class="t">'+escapeHtml(e.text || '')+'</div>':''}
+                    ${e.caption ? '<div class="t">'+escapeHtml(e.caption || '')+'</div>':''}
+                    ${e.link ? '<div><a class="l" href="'+e.link.match(/\bhttps?:\/\/\S+/gi)+'">'+escapeHtml(e.link)+'</a></div>':''}
+                    <div class="f">${time.toLocaleTimeString("en-US", hopt)}
+                        ${e.remoteResourceDisplayName ? '<span title="'+e.remoteResource+'"> - '+e.remoteResourceDisplayName+'</span>':''}
+                    </div>
+                </div>`
+            });
+
+            html = `<h1>${data.contactName}</h1><h5>${data.key}</h5><h5>${cIn + cOut} ( ${cOut} / ${cIn} )</h5>` + html;
+            document.title = 'WhatsApp Chat - '+data.contactName+' - '+lastDate;
+			document.getElementById('chat').innerHTML = html;
+			document.getElementById('jsonFile').outerHTML = '';
+        }
+
+        function loadFile() {
+            var input, file, fr;
+
+            if (typeof window.FileReader !== 'function') {
+                alert("The file API isn't supported on this browser yet.");
+                return;
+            }
+
+            input = document.getElementById('fileinput');
+            if (!input) {
+                alert("Um, couldn't find the fileinput element.");
+            } else if (!input.files) {
+                alert("This browser doesn't seem to support the `files` property of file inputs.");
+            } else if (!input.files[0]) {
+                alert("Please select a file before clicking 'Load'");
+            } else {
+                file = input.files[0];
+                fr = new FileReader();
+                fr.onload = receivedText;
+                fr.readAsText(file);
+            }
+            
+            function receivedText(e) {
+                let lines = e.target.result;
+                go(JSON.parse(lines));
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+
+</html>
